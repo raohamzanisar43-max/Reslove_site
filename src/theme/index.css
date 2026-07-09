@@ -1,0 +1,15 @@
+@theme {
+  --color-navy-950: #060b1e;
+  --color-navy-900: #0a1330;
+  --color-navy-800: #0e1938;
+  --color-navy-700: #16234f;
+  --color-navy-600: #1f2f66;
+  --color-navy-500: #2a3d80;
+
+  --color-gold-300: #ecd58e;
+  --color-gold-400: #ddb95c;
+  --color-gold-500: #cc9f2f;
+  --color-gold-600: #b08423;
+
+  --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+}
