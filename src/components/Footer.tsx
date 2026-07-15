@@ -46,7 +46,7 @@ const socials = [
 
 const badges = [
   {
-    label: 'CGA Licensed',
+    label: 'Licensed Provider',
     icon: (
       <path d="M12 2 4 5v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V5Z" />
     ),
@@ -88,7 +88,7 @@ export default function Footer() {
           <p className="text-white font-medium mb-3">Independent. Impartial. Expert.</p>
           <p className="text-sm text-gray-400 leading-relaxed">
             Resolvo provides independent Alternative Dispute Resolution for disputes
-            between CGA-licensed online gaming operators and their players —
+            between licensed online gaming operators and their players —
             objective, transparent, and free for players.
           </p>
           <div className="flex gap-3 mt-4">

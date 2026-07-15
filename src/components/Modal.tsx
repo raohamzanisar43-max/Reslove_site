@@ -21,7 +21,7 @@ export default function Modal({ onClose }: { onClose: () => void }) {
         <div className="px-8 py-10 text-center">
           <p className="text-navy-800 text-lg">
             Submit your case to Resolvo —{' '}
-            <span className="text-gold-600">free, independent, and CGA-aligned</span>.
+            <span className="text-gold-600">free, independent, and regulatory-aligned</span>.
             <br />
             Get a fair, evidence-based resolution in as little as{' '}
             <span className="font-semibold">90 days</span>.
@@ -40,7 +40,7 @@ export default function Modal({ onClose }: { onClose: () => void }) {
           </Link>
 
           <p className="text-xs text-gray-400 mt-3">
-            Your information is confidential • CGA-certified process
+            Your information is confidential • certified process
           </p>
         </div>
 

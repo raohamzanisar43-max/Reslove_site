@@ -23,13 +23,13 @@ const steps = [
     tag: 'ASSESSMENT',
     title: 'Independent Review',
     description:
-      'Resolvo conducts an impartial, evidence-based review applying the applicable regulatory framework — including CGA policies and civil law where relevant.',
+      'Resolvo conducts an impartial, evidence-based review applying the applicable regulatory framework — including applicable regulatory policies and civil law where relevant.',
   },
   {
     tag: '90 DAYS',
     title: 'Written Outcome',
     description:
-      'A reasoned written outcome is issued within 90 days from referral. Per CGA policy, the outcome is binding on the operator.',
+      'A reasoned written outcome is issued within 90 days from referral. Per regulatory requirements, the outcome is binding on the operator.',
   },
 ]
 

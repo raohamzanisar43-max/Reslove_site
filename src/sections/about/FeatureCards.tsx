@@ -15,7 +15,7 @@ const features = [
     ),
     title: 'Regulatory Aligned',
     description:
-      "All processes operate in line with Curaçao's regulatory framework and the Gaming Control Authority (CGA) requirements.",
+      "All processes operate in line with Curaçao's regulatory framework and licensing requirements.",
   },
   {
     icon: (

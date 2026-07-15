@@ -15,7 +15,7 @@ const rules: { title: string; body: ReactNode }[] = [
         <p className="mt-4">
           Resolvo only handles Disputes for operators who have an{' '}
           <strong>active ADR agreement</strong> with Resolvo and are{' '}
-          <strong>CGA-licensed</strong>.
+          <strong>licensed</strong>.
         </p>
         <p className="mt-4">
           The ADR process is <strong>completely free</strong> of charge to
@@ -39,7 +39,7 @@ const rules: { title: string; body: ReactNode }[] = [
             issued
           </li>
           <li>The Dispute is not pending before a court or another ADR provider</li>
-          <li>The Dispute has not previously been decided by any CGA-certified ADR</li>
+          <li>The Dispute has not previously been decided by any certified ADR provider</li>
           <li>There is no conflict of interest</li>
           <li>
             The case falls within ADR parameters (no manifestly frivolous or
@@ -120,7 +120,7 @@ const rules: { title: string; body: ReactNode }[] = [
         <p className="mt-4">The review applies the relevant regulatory framework:</p>
         <ul className="mt-2 list-disc pl-5 space-y-1">
           <li>LOK</li>
-          <li>CGA policies and directives</li>
+          <li>regulatory policies and directives</li>
           <li>Curaçao civil law principles where relevant</li>
         </ul>
         <p className="mt-4">
@@ -158,7 +158,7 @@ const rules: { title: string; body: ReactNode }[] = [
           <li>Required actions for the parties</li>
         </ul>
         <p className="mt-4">
-          Per CGA policy, the outcome is{' '}
+          Per regulatory requirements, the outcome is{' '}
           <strong>binding on the operator</strong>. Whether it is binding on
           the player depends on the operator's published ADR parameters.
         </p>
@@ -187,7 +187,7 @@ const rules: { title: string; body: ReactNode }[] = [
           least <strong>five years</strong>.
         </p>
         <p className="mt-4">
-          Resolvo will report and cooperate with the CGA in line with
+          Resolvo will report and cooperate with the regulatory authority in line with
           monitoring requirements, including production of files upon
           request.
         </p>
@@ -206,7 +206,7 @@ const rules: { title: string; body: ReactNode }[] = [
         <p className="mt-4">
           Resolvo does not mediate regulatory complaints; if a player
           believes an operator breached regulation, they may contact the{' '}
-          <strong>Curaçao Gaming Authority</strong> separately.
+          <strong>Curaçao regulatory authority</strong> separately.
         </p>
       </>
     ),
@@ -219,7 +219,7 @@ const glance = [
   { value: 'EN • FR • DE • ES', label: 'Supported Languages' },
   { value: '5+ Years', label: 'Record Retention' },
   { value: 'Free', label: 'for Players — All costs borne by operator' },
-  { value: 'Binding', label: 'on Operator — Per CGA rules' },
+  { value: 'Binding', label: 'on Operator — Per regulatory rules' },
 ]
 
 export default function RulesAccordion() {
@@ -235,8 +235,7 @@ export default function RulesAccordion() {
         <p className="mt-4 text-gold-600/80 leading-relaxed">
           Crystal-clear rules. Lightning-fast resolutions. Total impartiality.
           <br />
-          Built to meet — and exceed — Curaçao Gaming Control Authority
-          standards.
+          Built to meet — and exceed — Curaçao regulatory standards.
         </p>
       </Reveal>
 

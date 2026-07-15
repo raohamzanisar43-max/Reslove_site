@@ -18,7 +18,7 @@ export default function Hero() {
         <div className="flex items-center gap-3 mb-3">
           <span className="h-px w-8 bg-gold-400" />
           <span className="text-xs font-semibold tracking-widest text-gold-400">
-            CGA-CERTIFIED ADR PROVIDER
+            CERTIFIED ADR PROVIDER
           </span>
         </div>
 
@@ -30,7 +30,7 @@ export default function Hero() {
 
         <p className="mt-4 max-w-xl text-gray-300 leading-relaxed">
           Resolvo provides independent Alternative Dispute Resolution for
-          disputes between CGA-licensed online gaming operators and their
+          disputes between licensed online gaming operators and their
           players — objective, evidence-based, and free to players.
         </p>
 

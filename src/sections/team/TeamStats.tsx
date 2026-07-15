@@ -7,7 +7,7 @@ const stats = [
   { value: '100%', label: 'BINDING ON OPERATORS' },
 ]
 
-const credentials = ['CGA Certified', 'CEDR Trained', 'Civil Law Experts']
+const credentials = ['Certified ADR', 'CEDR Trained', 'Civil Law Experts']
 
 function CredentialPill({ label }: { label: string }) {
   return (

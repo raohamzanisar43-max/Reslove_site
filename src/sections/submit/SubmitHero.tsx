@@ -23,7 +23,7 @@ export default function SubmitHero() {
         </h1>
         <p className="mt-6 text-lg text-gray-300 leading-relaxed">
           File your dispute or get in touch with Resolvo — free, independent,
-          and CGA-aligned.
+          and regulatory-aligned.
         </p>
       </div>
     </section>

@@ -12,7 +12,7 @@ export default function TeamCta() {
             </h2>
             <p className="mt-3 text-gray-300 max-w-lg leading-relaxed">
               Submit your dispute today — free, independent, and
-              CGA-aligned. Our team will review your case and provide a
+              regulatory-aligned. Our team will review your case and provide a
               fair, evidence-based written outcome within 90 days.
             </p>
           </div>

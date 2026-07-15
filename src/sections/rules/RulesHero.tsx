@@ -14,7 +14,7 @@ export default function RulesHero() {
         <div className="flex items-center justify-center gap-3 mb-4">
           <span className="h-px w-8 bg-gold-400" />
           <span className="text-xs font-semibold tracking-widest text-gold-400">
-            CGA-ALIGNED PROCEDURE
+            REGULATORY-ALIGNED PROCEDURE
           </span>
           <span className="h-px w-8 bg-gold-400" />
         </div>
@@ -24,7 +24,7 @@ export default function RulesHero() {
         </h1>
         <p className="mt-4 text-gray-300 leading-relaxed">
           Transparent, structured and impartial framework for resolving
-          disputes between players and CGA-licensed operators.
+          disputes between players and licensed operators.
         </p>
       </div>
     </section>
