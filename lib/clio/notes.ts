@@ -20,13 +20,6 @@ export function formatDisputeNoteDetail(data: ValidatedDisputeData): string {
   return `
 === RESOLVO DISPUTE INTAKE SUBMISSION ===
 
-DISPUTE METADATA:
-• Date of Incident: ${data.dateOfIncident}
-• Operator: ${data.operator}
-${accountRefLine}
-• Amount Claimed (EUR): €${data.amountClaimedEur.toFixed(2)} (${data.amountClaimedCents} cents)
-• Submission Timestamp: ${data.submittedAt}
-
 COMPLAINANT INFORMATION:
 • Name: ${data.firstName} ${data.lastName}
 • Email: ${data.complainantEmail}
@@ -34,6 +27,13 @@ COMPLAINANT INFORMATION:
 • Town / City: ${data.town}
 • Post Code: ${data.postCode}
 • Country of Residence: ${data.countryOfResidence}
+
+DISPUTE METADATA:
+• Date of Incident: ${data.dateOfIncident}
+• Operator: ${data.operator}
+${accountRefLine}
+• Amount Claimed (EUR): €${data.amountClaimedEur.toFixed(2)} (${data.amountClaimedCents} cents)
+• Submission Timestamp: ${data.submittedAt}
 
 CASE DETAILS (UNMODIFIED SUBMISSION):
 --------------------------------------------------
@@ -56,25 +56,44 @@ CONSENT & CONFIRMATION AUDIT TRAIL:
 export async function createDisputeNote(
   matterId: number,
   data: ValidatedDisputeData
-): Promise<ClioNote> {
-  const endpoint = `/notes.json?fields=id,subject,detail,date`;
+): Promise<ClioNote | null> {
+  const endpoint = `/notes.json?type=matter&fields=id,subject,detail,date`;
   const todayIsoDate = new Date().toISOString().split('T')[0];
 
   const payload = {
     data: {
+      type: 'Matter',
       subject: `Dispute Intake Details - ${data.operator} (${data.dateOfIncident})`,
       detail: formatDisputeNoteDetail(data),
       date: todayIsoDate,
+      regarding: {
+        id: matterId,
+        type: 'Matter',
+      },
       matter: {
         id: matterId,
       },
     },
   };
 
-  const response = await clioRequest<ClioSingleNoteResponse>(endpoint, {
-    method: 'POST',
-    body: payload,
-  });
-
-  return response.data;
+  try {
+    const response = await clioRequest<ClioSingleNoteResponse>(endpoint, {
+      method: 'POST',
+      body: payload,
+    });
+    return response.data;
+  } catch (err) {
+    console.warn('[Clio Notes Warning] Primary note creation endpoint warning, trying fallback:', (err as Error).message);
+    // Fallback without type in query
+    try {
+      const fallbackRes = await clioRequest<ClioSingleNoteResponse>(`/notes.json?fields=id,subject,detail,date`, {
+        method: 'POST',
+        body: payload,
+      });
+      return fallbackRes.data;
+    } catch (fallbackErr) {
+      console.error('[Clio Notes Error] Note creation fallback error:', (fallbackErr as Error).message);
+      return null;
+    }
+  }
 }

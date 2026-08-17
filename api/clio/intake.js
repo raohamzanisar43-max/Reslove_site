@@ -620,13 +620,6 @@ function formatDisputeNoteDetail(data) {
   return `
 === RESOLVO DISPUTE INTAKE SUBMISSION ===
 
-DISPUTE METADATA:
-\u2022 Date of Incident: ${data.dateOfIncident}
-\u2022 Operator: ${data.operator}
-${accountRefLine}
-\u2022 Amount Claimed (EUR): \u20AC${data.amountClaimedEur.toFixed(2)} (${data.amountClaimedCents} cents)
-\u2022 Submission Timestamp: ${data.submittedAt}
-
 COMPLAINANT INFORMATION:
 \u2022 Name: ${data.firstName} ${data.lastName}
 \u2022 Email: ${data.complainantEmail}
@@ -634,6 +627,13 @@ COMPLAINANT INFORMATION:
 \u2022 Town / City: ${data.town}
 \u2022 Post Code: ${data.postCode}
 \u2022 Country of Residence: ${data.countryOfResidence}
+
+DISPUTE METADATA:
+\u2022 Date of Incident: ${data.dateOfIncident}
+\u2022 Operator: ${data.operator}
+${accountRefLine}
+\u2022 Amount Claimed (EUR): \u20AC${data.amountClaimedEur.toFixed(2)} (${data.amountClaimedCents} cents)
+\u2022 Submission Timestamp: ${data.submittedAt}
 
 CASE DETAILS (UNMODIFIED SUBMISSION):
 --------------------------------------------------
@@ -650,23 +650,42 @@ CONSENT & CONFIRMATION AUDIT TRAIL:
 `.trim();
 }
 async function createDisputeNote(matterId, data) {
-  const endpoint = `/notes.json?fields=id,subject,detail,date`;
+  const endpoint = `/notes.json?type=matter&fields=id,subject,detail,date`;
   const todayIsoDate = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
   const payload = {
     data: {
+      type: "Matter",
       subject: `Dispute Intake Details - ${data.operator} (${data.dateOfIncident})`,
       detail: formatDisputeNoteDetail(data),
       date: todayIsoDate,
+      regarding: {
+        id: matterId,
+        type: "Matter"
+      },
       matter: {
         id: matterId
       }
     }
   };
-  const response = await clioRequest(endpoint, {
-    method: "POST",
-    body: payload
-  });
-  return response.data;
+  try {
+    const response = await clioRequest(endpoint, {
+      method: "POST",
+      body: payload
+    });
+    return response.data;
+  } catch (err) {
+    console.warn("[Clio Notes Warning] Primary note creation endpoint warning, trying fallback:", err.message);
+    try {
+      const fallbackRes = await clioRequest(`/notes.json?fields=id,subject,detail,date`, {
+        method: "POST",
+        body: payload
+      });
+      return fallbackRes.data;
+    } catch (fallbackErr) {
+      console.error("[Clio Notes Error] Note creation fallback error:", fallbackErr.message);
+      return null;
+    }
+  }
 }
 
 // lib/clio/documents.ts
@@ -815,7 +834,11 @@ async function handler(req, res) {
     }
     const { contact } = await findOrCreateContact(validatedData);
     const matter = await createMatter(contact.id, validatedData);
-    await createDisputeNote(matter.id, validatedData);
+    try {
+      await createDisputeNote(matter.id, validatedData);
+    } catch (noteErr) {
+      console.warn("[Clio Notes Warning] Note creation error:", noteErr.message);
+    }
     let uploadedCount = 0;
     if (parsed.files && parsed.files.length > 0) {
       const uploadResult = await uploadAllEvidenceFiles(matter.id, parsed.files);
@@ -833,25 +856,34 @@ async function handler(req, res) {
     });
   } catch (error) {
     if (error instanceof ClioApiError) {
-      console.error(`[Clio API Error] Status ${error.statusCode}:`, error.message);
+      console.error(`[Clio API Error] Status ${error.statusCode}:`, error.message, error.details);
+      let detailMsg = "";
+      if (error.details) {
+        if (typeof error.details === "object") {
+          const det = error.details;
+          detailMsg = det.error?.message || det.message || JSON.stringify(det);
+        } else {
+          detailMsg = String(error.details);
+        }
+      }
       if (error.statusCode === 401) {
         res.status(401).json({
           success: false,
-          error: "Clio authentication failed. Please check your credentials."
+          error: `Clio authentication failed (401). ${detailMsg || "Please verify CLIO_ACCESS_TOKEN and CLIO_REFRESH_TOKEN."}`
         });
         return;
       }
       if (error.statusCode === 403) {
         res.status(403).json({
           success: false,
-          error: "Clio permission denied. Required OAuth scopes are missing."
+          error: `Clio permission denied (403). ${detailMsg || "Your OAuth application lacks required scopes."}`
         });
         return;
       }
       if (error.statusCode === 404) {
         res.status(404).json({
           success: false,
-          error: "Clio resource not found."
+          error: `Clio resource not found (404). ${detailMsg || ""}`
         });
         return;
       }
@@ -864,14 +896,14 @@ async function handler(req, res) {
       }
       res.status(502).json({
         success: false,
-        error: "Unable to create the dispute in Clio. Downstream service returned an error."
+        error: `Clio API Error (${error.statusCode}): ${detailMsg || error.message}`
       });
       return;
     }
     console.error("[Internal Error]:", error.message);
     res.status(500).json({
       success: false,
-      error: "An internal server error occurred while processing the dispute submission."
+      error: `Internal server error: ${error.message}`
     });
   }
 }
