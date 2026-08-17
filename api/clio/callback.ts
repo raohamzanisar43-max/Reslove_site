@@ -7,7 +7,6 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'http';
-import { getClioConfig } from '../../lib/clio/client';
 
 export default async function handler(
   req: IncomingMessage,
@@ -44,9 +43,9 @@ export default async function handler(
       return;
     }
 
-    const config = getClioConfig();
-    const clientId = config.clientId || process.env.CLIO_CLIENT_ID;
-    const clientSecret = config.clientSecret || process.env.CLIO_CLIENT_SECRET;
+    const baseUrl = (process.env.CLIO_BASE_URL || 'https://app.clio.com/api/v4').replace(/\/+$/, '');
+    const clientId = process.env.CLIO_CLIENT_ID;
+    const clientSecret = process.env.CLIO_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
       res.statusCode = 500;
@@ -61,7 +60,7 @@ export default async function handler(
     }
 
     const redirectUri = `${proto}://${host}/api/clio/callback`;
-    const oauthDomain = config.baseUrl.replace(/\/api\/v4\/?$/, '');
+    const oauthDomain = baseUrl.replace(/\/api\/v4\/?$/, '');
     const tokenUrl = `${oauthDomain}/oauth/token`;
 
     const tokenResponse = await fetch(tokenUrl, {
