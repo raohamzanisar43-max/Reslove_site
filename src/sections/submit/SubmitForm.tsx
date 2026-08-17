@@ -42,8 +42,11 @@ type ErrorMap = Partial<Record<keyof DisputeForm, string>>
 
 export default function SubmitForm() {
   const [form, setForm] = useState<DisputeForm>(initialForm)
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([])
   const [errors, setErrors] = useState<ErrorMap>({})
-  const [submitted, setSubmitted] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submittedData, setSubmittedData] = useState<{ contactId?: string | number; matterId?: string | number } | null>(null)
 
   function validate(values: DisputeForm) {
     const next: ErrorMap = {}
@@ -68,12 +71,82 @@ export default function SubmitForm() {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
-  function handleSubmit(e: FormEvent) {
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files) {
+      setEvidenceFiles(Array.from(e.target.files))
+    }
+  }
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    setSubmitError(null)
     const validationErrors = validate(form)
     setErrors(validationErrors)
-    if (Object.keys(validationErrors).length === 0) {
-      setSubmitted(true)
+
+    if (Object.keys(validationErrors).length > 0) {
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('firstName', form.firstName)
+      formData.append('lastName', form.lastName)
+      formData.append('complainantEmail', form.email)
+      formData.append('streetHouseNumber', form.street)
+      formData.append('town', form.town)
+      formData.append('postCode', form.postCode)
+      formData.append('countryOfResidence', form.country)
+      formData.append('dateOfIncident', form.incidentDate)
+      formData.append('operator', form.operator)
+      if (form.accountId) formData.append('operatorReference', form.accountId)
+      formData.append('amountClaimedEur', form.amountClaimed)
+      formData.append('caseDetails', form.details)
+      formData.append('informationAccurate', String(form.verifyTrue))
+      formData.append('personalDataConsent', String(form.consentData))
+      formData.append('rulesAccepted', String(form.acceptRules))
+
+      evidenceFiles.forEach((file) => {
+        formData.append('evidence', file)
+      })
+
+      const res = await fetch('/api/clio/intake', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        if (data.fields) {
+          const mappedErrors: ErrorMap = {}
+          for (const [k, msg] of Object.entries(data.fields)) {
+            if (k === 'complainantEmail') mappedErrors.email = String(msg)
+            else if (k === 'streetHouseNumber') mappedErrors.street = String(msg)
+            else if (k === 'dateOfIncident') mappedErrors.incidentDate = String(msg)
+            else if (k === 'operatorReference') mappedErrors.accountId = String(msg)
+            else if (k === 'amountClaimedEur') mappedErrors.amountClaimed = String(msg)
+            else if (k === 'caseDetails') mappedErrors.details = String(msg)
+            else if (k === 'informationAccurate') mappedErrors.verifyTrue = String(msg)
+            else if (k === 'personalDataConsent') mappedErrors.consentData = String(msg)
+            else if (k === 'rulesAccepted') mappedErrors.acceptRules = String(msg)
+            else (mappedErrors as Record<string, string>)[k] = String(msg)
+          }
+          setErrors(mappedErrors)
+        }
+        setSubmitError(data.error || 'Failed to submit dispute. Please try again.')
+        return
+      }
+
+      setSubmittedData({
+        contactId: data.contact?.id,
+        matterId: data.matter?.id,
+      })
+    } catch (err) {
+      setSubmitError(`Network error: ${(err as Error).message}`)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -99,13 +172,23 @@ export default function SubmitForm() {
 
       <Reveal delay={100} className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="rounded-xl border border-gray-200 bg-white p-8 sm:p-12">
-          {submitted ? (
+          {submittedData ? (
             <div className="text-center py-12">
-              <h3 className="text-2xl font-semibold text-navy-800">Dispute Submitted</h3>
-              <p className="mt-4 text-gray-600">
-                Thank you, {form.firstName}. Your dispute has been received.
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600 mb-6">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-8 w-8">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-semibold text-navy-800">Dispute Submitted Successfully</h3>
+              <p className="mt-4 text-gray-600 max-w-lg mx-auto">
+                Thank you, {form.firstName}. Your dispute has been securely received and recorded in our ADR system.
                 Resolvo will acknowledge receipt within 7 calendar days.
               </p>
+              {submittedData.matterId && (
+                <p className="mt-4 text-xs font-mono text-gray-500 bg-gray-100 inline-block px-3 py-1.5 rounded-md">
+                  Reference Case ID: #{submittedData.matterId}
+                </p>
+              )}
             </div>
           ) : (
             <form onSubmit={handleSubmit} noValidate>
@@ -116,6 +199,13 @@ export default function SubmitForm() {
                 Fields marked with <span className="text-red-500">*</span> are
                 required.
               </p>
+
+              {submitError && (
+                <div className="mb-6 rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+                  <div className="font-semibold mb-1">Submission Failed</div>
+                  <div>{submitError}</div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <Field label="First Name" required error={errors.firstName}>
@@ -252,12 +342,17 @@ export default function SubmitForm() {
                     type="file"
                     multiple
                     accept="image/jpeg,image/png,image/gif"
+                    onChange={handleFileChange}
                     className="block w-full text-sm text-gray-600 border border-gray-300 rounded-md bg-gray-50 py-2.5 px-3 file:mr-4 file:py-1.5 file:px-4 file:rounded file:border-0 file:bg-gray-200 file:text-sm file:font-medium file:text-navy-800 file:cursor-pointer"
                   />
                   <p className="text-xs text-gray-500 mt-2">
                     Supported: jpg, png, gif. Max 5 MB per file, 10 MB total.
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">No files selected yet</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {evidenceFiles.length > 0
+                      ? `${evidenceFiles.length} file(s) selected: ${evidenceFiles.map((f) => f.name).join(', ')}`
+                      : 'No files selected yet'}
+                  </p>
                 </Field>
               </div>
 
@@ -301,12 +396,25 @@ export default function SubmitForm() {
 
               <button
                 type="submit"
-                className="mt-8 inline-flex items-center gap-2 rounded-full bg-blue-800 px-6 py-3 font-semibold text-white hover:bg-blue-900 hover:-translate-y-1 transition-all cursor-pointer"
+                disabled={isSubmitting}
+                className="mt-8 inline-flex items-center gap-2 rounded-full bg-blue-800 px-6 py-3 font-semibold text-white hover:bg-blue-900 hover:-translate-y-1 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" />
-                </svg>
-                Submit Complaint
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    Submitting Dispute...
+                  </>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" />
+                    </svg>
+                    Submit Complaint
+                  </>
+                )}
               </button>
             </form>
           )}
