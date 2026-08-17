@@ -6,57 +6,64 @@
  * and renders a secure helper page to copy tokens directly into Vercel environment variables.
  */
 
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { IncomingMessage, ServerResponse } from 'http';
 import { getClioConfig } from '../../lib/clio/client';
 
 export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
+  req: IncomingMessage,
+  res: ServerResponse
 ): Promise<void> {
-  const { code, error, error_description } = req.query;
-
-  if (error) {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.status(400).send(renderErrorPage(String(error), String(error_description || '')));
-    return;
-  }
-
-  if (!code || typeof code !== 'string') {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.status(400).send(
-      renderErrorPage(
-        'Missing authorization code',
-        'No "code" query parameter received from Clio. Please initiate login from /api/clio/auth.'
-      )
-    );
-    return;
-  }
-
-  const config = getClioConfig();
-  const clientId = config.clientId || process.env.CLIO_CLIENT_ID;
-  const clientSecret = config.clientSecret || process.env.CLIO_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.status(500).send(
-      renderErrorPage(
-        'Server Configuration Missing',
-        'CLIO_CLIENT_ID or CLIO_CLIENT_SECRET is not set in Vercel Environment Variables.'
-      )
-    );
-    return;
-  }
-
-  // Determine Redirect URI dynamically from the request headers
-  const host = req.headers['x-forwarded-host'] || req.headers.host || 'resolvoanjouan.com';
-  const proto = req.headers['x-forwarded-proto'] || 'https';
-  const redirectUri = `${proto}://${host}/api/clio/callback`;
-
-  // Base OAuth URL
-  const oauthDomain = config.baseUrl.replace(/\/api\/v4\/?$/, '');
-  const tokenUrl = `${oauthDomain}/oauth/token`;
-
   try {
+    const reqUrl = req.url || '';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'resolvoanjouan.com';
+    const proto = req.headers['x-forwarded-proto'] || 'https';
+    const parsedUrl = new URL(reqUrl, `${proto}://${host}`);
+
+    const code = parsedUrl.searchParams.get('code');
+    const error = parsedUrl.searchParams.get('error');
+    const errorDescription = parsedUrl.searchParams.get('error_description');
+
+    if (error) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.end(renderErrorPage(String(error), String(errorDescription || '')));
+      return;
+    }
+
+    if (!code) {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.end(
+        renderInfoPage(
+          'Clio OAuth Callback Ready',
+          `This endpoint is configured to receive Clio authorization codes.<br><br>
+          To connect your Clio account, click the button below to sign in and authorize:`,
+          `${proto}://${host}/api/clio/auth`
+        )
+      );
+      return;
+    }
+
+    const config = getClioConfig();
+    const clientId = config.clientId || process.env.CLIO_CLIENT_ID;
+    const clientSecret = config.clientSecret || process.env.CLIO_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.end(
+        renderErrorPage(
+          'Server Configuration Missing',
+          '<code>CLIO_CLIENT_ID</code> or <code>CLIO_CLIENT_SECRET</code> is not set in Vercel Environment Variables. Please add them in your Vercel Project Settings.'
+        )
+      );
+      return;
+    }
+
+    const redirectUri = `${proto}://${host}/api/clio/callback`;
+    const oauthDomain = config.baseUrl.replace(/\/api\/v4\/?$/, '');
+    const tokenUrl = `${oauthDomain}/oauth/token`;
+
     const tokenResponse = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
@@ -82,18 +89,20 @@ export default async function handler(
     };
 
     if (!tokenResponse.ok || !tokenData.access_token) {
+      res.statusCode = 400;
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.status(400).send(
+      res.end(
         renderErrorPage(
           tokenData.error || 'Token Exchange Failed',
-          tokenData.error_description || 'Clio rejected the authorization code.'
+          tokenData.error_description || 'Clio rejected the authorization code. Authorization codes expire quickly; please try authorizing again.'
         )
       );
       return;
     }
 
+    res.statusCode = 200;
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.status(200).send(
+    res.end(
       renderSuccessPage({
         accessToken: tokenData.access_token,
         refreshToken: tokenData.refresh_token || '',
@@ -101,9 +110,10 @@ export default async function handler(
       })
     );
   } catch (err) {
+    res.statusCode = 500;
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.status(500).send(
-      renderErrorPage('Network Error', `Could not reach Clio OAuth server: ${(err as Error).message}`)
+    res.end(
+      renderErrorPage('Server Error', `An error occurred: ${(err as Error).message}`)
     );
   }
 }
@@ -158,28 +168,60 @@ function renderSuccessPage(tokens: { accessToken: string; refreshToken: string; 
   `;
 }
 
+function renderInfoPage(title: string, detail: string, authUrl: string) {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; color: #1e293b; display: flex; justify-content: center; padding: 40px 20px; }
+    .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); max-width: 600px; width: 100%; padding: 32px; border: 1px solid #e2e8f0; }
+    .badge { background: #e0f2fe; color: #0369a1; padding: 4px 12px; border-radius: 9999px; font-weight: 600; font-size: 14px; display: inline-block; margin-bottom: 12px; }
+    h1 { font-size: 22px; color: #0f172a; margin: 0 0 12px 0; }
+    p { color: #64748b; font-size: 15px; line-height: 1.6; }
+    .btn { display: inline-block; background: #1d4ed8; color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; margin-top: 16px; }
+    .btn:hover { background: #1e40af; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="badge">Clio OAuth</span>
+    <h1>${title}</h1>
+    <p>${detail}</p>
+    <a href="${authUrl}" class="btn">Connect with Clio Manage →</a>
+  </div>
+</body>
+</html>
+  `;
+}
+
 function renderErrorPage(title: string, detail: string) {
   return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clio Authorization Error</title>
   <style>
-    body { font-family: sans-serif; background: #f8fafc; color: #1e293b; display: flex; justify-content: center; padding: 40px 20px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; color: #1e293b; display: flex; justify-content: center; padding: 40px 20px; }
     .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); max-width: 600px; width: 100%; padding: 32px; border: 1px solid #fee2e2; }
     .badge { background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 9999px; font-weight: 600; font-size: 14px; display: inline-block; margin-bottom: 12px; }
     h1 { font-size: 22px; color: #991b1b; margin: 0 0 12px 0; }
-    p { color: #64748b; font-size: 15px; }
+    p { color: #64748b; font-size: 15px; line-height: 1.6; }
     code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+    .btn { display: inline-block; background: #2563eb; color: white; padding: 10px 20px; border-radius: 6px; font-weight: 600; text-decoration: none; margin-top: 16px; }
   </style>
 </head>
 <body>
   <div class="card">
-    <span class="badge">OAuth Error</span>
+    <span class="badge">OAuth Notice</span>
     <h1>${title}</h1>
     <p>${detail}</p>
-    <p>Please check that <code>CLIO_CLIENT_ID</code> and <code>CLIO_CLIENT_SECRET</code> are set in Vercel, and that the Redirect URI matches in your Clio Developer App settings.</p>
+    <a href="/api/clio/auth" class="btn">Try Connecting with Clio</a>
   </div>
 </body>
 </html>
