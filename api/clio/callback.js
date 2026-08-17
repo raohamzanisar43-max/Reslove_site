@@ -1,17 +1,8 @@
 /**
  * Vercel Serverless Function: GET /api/clio/callback
- *
- * Handles the OAuth 2.0 redirect from Clio Manage.
- * Exchanges authorization `code` for `access_token` and `refresh_token`
- * and renders a secure helper page to copy tokens directly into Vercel environment variables.
  */
 
-import type { IncomingMessage, ServerResponse } from 'http';
-
-export default async function handler(
-  req: IncomingMessage,
-  res: ServerResponse
-): Promise<void> {
+export default async function handler(req, res) {
   try {
     const reqUrl = req.url || '';
     const host = req.headers['x-forwarded-host'] || req.headers.host || 'resolvoanjouan.com';
@@ -36,7 +27,7 @@ export default async function handler(
         renderInfoPage(
           'Clio OAuth Callback Ready',
           `This endpoint is configured to receive Clio authorization codes.<br><br>
-          To connect your Clio account, click the button below to sign in and authorize:`,
+          To connect your Clio account, click the button below:`,
           `${proto}://${host}/api/clio/auth`
         )
       );
@@ -53,7 +44,7 @@ export default async function handler(
       res.end(
         renderErrorPage(
           'Server Configuration Missing',
-          '<code>CLIO_CLIENT_ID</code> or <code>CLIO_CLIENT_SECRET</code> is not set in Vercel Environment Variables. Please add them in your Vercel Project Settings.'
+          '<code>CLIO_CLIENT_ID</code> or <code>CLIO_CLIENT_SECRET</code> is not set in Vercel Environment Variables.'
         )
       );
       return;
@@ -78,14 +69,7 @@ export default async function handler(
       }).toString(),
     });
 
-    const tokenData = (await tokenResponse.json()) as {
-      access_token?: string;
-      refresh_token?: string;
-      expires_in?: number;
-      token_type?: string;
-      error?: string;
-      error_description?: string;
-    };
+    const tokenData = await tokenResponse.json();
 
     if (!tokenResponse.ok || !tokenData.access_token) {
       res.statusCode = 400;
@@ -112,12 +96,12 @@ export default async function handler(
     res.statusCode = 500;
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.end(
-      renderErrorPage('Server Error', `An error occurred: ${(err as Error).message}`)
+      renderErrorPage('Server Error', `An error occurred: ${err.message}`)
     );
   }
 }
 
-function renderSuccessPage(tokens: { accessToken: string; refreshToken: string; expiresIn: number }) {
+function renderSuccessPage(tokens) {
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -167,7 +151,7 @@ function renderSuccessPage(tokens: { accessToken: string; refreshToken: string; 
   `;
 }
 
-function renderInfoPage(title: string, detail: string, authUrl: string) {
+function renderInfoPage(title, detail, authUrl) {
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -197,7 +181,7 @@ function renderInfoPage(title: string, detail: string, authUrl: string) {
   `;
 }
 
-function renderErrorPage(title: string, detail: string) {
+function renderErrorPage(title, detail) {
   return `
 <!DOCTYPE html>
 <html lang="en">

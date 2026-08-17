@@ -1,16 +1,8 @@
 /**
  * Vercel Serverless Function: GET /api/clio/auth
- *
- * Initiates the Clio OAuth 2.0 authorization flow by redirecting the user
- * to Clio's official authorization screen.
  */
 
-import type { IncomingMessage, ServerResponse } from 'http';
-
-export default function handler(
-  req: IncomingMessage,
-  res: ServerResponse
-): void {
+export default function handler(req, res) {
   try {
     const baseUrl = (process.env.CLIO_BASE_URL || 'https://app.clio.com/api/v4').replace(/\/+$/, '');
     const clientId = process.env.CLIO_CLIENT_ID;
@@ -68,6 +60,6 @@ export default function handler(
   } catch (err) {
     res.statusCode = 500;
     res.setHeader('Content-Type', 'text/plain');
-    res.end(`OAuth redirect error: ${(err as Error).message}`);
+    res.end(`OAuth redirect error: ${err.message}`);
   }
 }
