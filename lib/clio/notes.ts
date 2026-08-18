@@ -52,17 +52,18 @@ CONSENT & CONFIRMATION AUDIT TRAIL:
 
 /**
  * Creates a note on the Clio Matter containing the dispute details and consent confirmations.
+ * Follows official Clio v4 polymorphic `regarding` schema:
+ * { "data": { "subject": "...", "detail": "...", "date": "...", "regarding": { "id": matterId, "type": "Matter" } } }
  */
 export async function createDisputeNote(
   matterId: number,
   data: ValidatedDisputeData
-): Promise<ClioNote | null> {
-  const endpoint = `/notes.json?type=matter&fields=id,subject,detail,date`;
+): Promise<ClioNote> {
+  const endpoint = `/notes.json?fields=id,subject,detail,date,regarding{id,type}`;
   const todayIsoDate = new Date().toISOString().split('T')[0];
 
   const payload = {
     data: {
-      type: 'Matter',
       subject: `Dispute Intake Details - ${data.operator} (${data.dateOfIncident})`,
       detail: formatDisputeNoteDetail(data),
       date: todayIsoDate,
@@ -70,30 +71,13 @@ export async function createDisputeNote(
         id: matterId,
         type: 'Matter',
       },
-      matter: {
-        id: matterId,
-      },
     },
   };
 
-  try {
-    const response = await clioRequest<ClioSingleNoteResponse>(endpoint, {
-      method: 'POST',
-      body: payload,
-    });
-    return response.data;
-  } catch (err) {
-    console.warn('[Clio Notes Warning] Primary note creation endpoint warning, trying fallback:', (err as Error).message);
-    // Fallback without type in query
-    try {
-      const fallbackRes = await clioRequest<ClioSingleNoteResponse>(`/notes.json?fields=id,subject,detail,date`, {
-        method: 'POST',
-        body: payload,
-      });
-      return fallbackRes.data;
-    } catch (fallbackErr) {
-      console.error('[Clio Notes Error] Note creation fallback error:', (fallbackErr as Error).message);
-      return null;
-    }
-  }
+  const response = await clioRequest<ClioSingleNoteResponse>(endpoint, {
+    method: 'POST',
+    body: payload,
+  });
+
+  return response.data;
 }

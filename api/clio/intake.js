@@ -602,9 +602,10 @@ async function createMatter(contactId, data) {
       client: {
         id: contactId
       },
-      description: `Resolvo Dispute - ${data.firstName} ${data.lastName}`,
+      description: `Resolvo Dispute - ${data.firstName} ${data.lastName} | Operator: ${data.operator} | Claim: \u20AC${data.amountClaimedEur.toFixed(2)} | Date: ${data.dateOfIncident}`,
       status: "Open",
-      open_date: todayIsoDate
+      open_date: todayIsoDate,
+      client_reference: data.operatorReference || `DISPUTE-${data.operator}`
     }
   };
   const response = await clioRequest(endpoint, {
@@ -650,42 +651,24 @@ CONSENT & CONFIRMATION AUDIT TRAIL:
 `.trim();
 }
 async function createDisputeNote(matterId, data) {
-  const endpoint = `/notes.json?type=matter&fields=id,subject,detail,date`;
+  const endpoint = `/notes.json?fields=id,subject,detail,date,regarding{id,type}`;
   const todayIsoDate = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
   const payload = {
     data: {
-      type: "Matter",
       subject: `Dispute Intake Details - ${data.operator} (${data.dateOfIncident})`,
       detail: formatDisputeNoteDetail(data),
       date: todayIsoDate,
       regarding: {
         id: matterId,
         type: "Matter"
-      },
-      matter: {
-        id: matterId
       }
     }
   };
-  try {
-    const response = await clioRequest(endpoint, {
-      method: "POST",
-      body: payload
-    });
-    return response.data;
-  } catch (err) {
-    console.warn("[Clio Notes Warning] Primary note creation endpoint warning, trying fallback:", err.message);
-    try {
-      const fallbackRes = await clioRequest(`/notes.json?fields=id,subject,detail,date`, {
-        method: "POST",
-        body: payload
-      });
-      return fallbackRes.data;
-    } catch (fallbackErr) {
-      console.error("[Clio Notes Error] Note creation fallback error:", fallbackErr.message);
-      return null;
-    }
-  }
+  const response = await clioRequest(endpoint, {
+    method: "POST",
+    body: payload
+  });
+  return response.data;
 }
 
 // lib/clio/documents.ts
@@ -834,10 +817,12 @@ async function handler(req, res) {
     }
     const { contact } = await findOrCreateContact(validatedData);
     const matter = await createMatter(contact.id, validatedData);
+    let noteCreated = false;
     try {
       await createDisputeNote(matter.id, validatedData);
+      noteCreated = true;
     } catch (noteErr) {
-      console.warn("[Clio Notes Warning] Note creation error:", noteErr.message);
+      console.warn("[Clio Notes Warning] Note creation warning:", noteErr.message);
     }
     let uploadedCount = 0;
     if (parsed.files && parsed.files.length > 0) {
@@ -852,6 +837,7 @@ async function handler(req, res) {
       matter: {
         id: matter.id
       },
+      noteCreated,
       evidenceUploaded: uploadedCount
     });
   } catch (error) {

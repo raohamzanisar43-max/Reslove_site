@@ -24,9 +24,10 @@ export async function createMatter(
       client: {
         id: contactId,
       },
-      description: `Resolvo Dispute - ${data.firstName} ${data.lastName}`,
+      description: `Resolvo Dispute - ${data.firstName} ${data.lastName} | Operator: ${data.operator} | Claim: €${data.amountClaimedEur.toFixed(2)} | Date: ${data.dateOfIncident}`,
       status: 'Open',
       open_date: todayIsoDate,
+      client_reference: data.operatorReference || `DISPUTE-${data.operator}`,
     },
   };
 
