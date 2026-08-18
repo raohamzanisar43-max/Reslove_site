@@ -43,9 +43,9 @@ export default function handler(req, res) {
       return;
     }
 
-    const host = req.headers['x-forwarded-host'] || req.headers.host || 'resolvoanjouan.com';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'www.resolvokunaisa.com';
     const proto = req.headers['x-forwarded-proto'] || 'https';
-    const redirectUri = `${proto}://${host}/api/clio/callback`;
+    const redirectUri = process.env.CLIO_REDIRECT_URI || `${proto}://${host}/api/clio/callback`;
 
     const oauthDomain = baseUrl.replace(/\/api\/v4\/?$/, '');
     const authorizeUrl = new URL(`${oauthDomain}/oauth/authorize`);

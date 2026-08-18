@@ -50,7 +50,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    const redirectUri = `${proto}://${host}/api/clio/callback`;
+    const redirectUri = process.env.CLIO_REDIRECT_URI || `${proto}://${host}/api/clio/callback`;
     const oauthDomain = baseUrl.replace(/\/api\/v4\/?$/, '');
     const tokenUrl = `${oauthDomain}/oauth/token`;
 
