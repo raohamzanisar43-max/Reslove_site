@@ -651,24 +651,70 @@ CONSENT & CONFIRMATION AUDIT TRAIL:
 `.trim();
 }
 async function createDisputeNote(matterId, data) {
-  const endpoint = `/notes.json?fields=id,subject,detail,date,regarding{id,type}`;
+  const endpoint = `/notes.json?fields=id,subject,detail,date`;
   const todayIsoDate = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
-  const payload = {
-    data: {
-      subject: `Dispute Intake Details - ${data.operator} (${data.dateOfIncident})`,
-      detail: formatDisputeNoteDetail(data),
-      date: todayIsoDate,
-      regarding: {
-        id: matterId,
-        type: "Matter"
+  const subject = `Dispute Intake Details - ${data.operator} (${data.dateOfIncident})`;
+  const detail = formatDisputeNoteDetail(data);
+  try {
+    const payload1 = {
+      data: {
+        subject,
+        detail,
+        date: todayIsoDate,
+        regarding: {
+          id: matterId,
+          type: "Matter"
+        }
       }
-    }
-  };
-  const response = await clioRequest(endpoint, {
-    method: "POST",
-    body: payload
-  });
-  return response.data;
+    };
+    const res1 = await clioRequest(endpoint, {
+      method: "POST",
+      body: payload1
+    });
+    return res1.data;
+  } catch (err1) {
+    console.warn("[Clio Notes] Schema 1 (regarding) error:", err1.message);
+  }
+  try {
+    const payload2 = {
+      data: {
+        subject,
+        detail,
+        date: todayIsoDate,
+        parent: {
+          id: matterId,
+          type: "Matter"
+        }
+      }
+    };
+    const res2 = await clioRequest(endpoint, {
+      method: "POST",
+      body: payload2
+    });
+    return res2.data;
+  } catch (err2) {
+    console.warn("[Clio Notes] Schema 2 (parent) error:", err2.message);
+  }
+  try {
+    const payload3 = {
+      data: {
+        subject,
+        detail,
+        date: todayIsoDate,
+        matter: {
+          id: matterId
+        }
+      }
+    };
+    const res3 = await clioRequest(endpoint, {
+      method: "POST",
+      body: payload3
+    });
+    return res3.data;
+  } catch (err3) {
+    console.error("[Clio Notes] Schema 3 (matter) error:", err3.message);
+  }
+  return null;
 }
 
 // lib/clio/documents.ts
@@ -819,10 +865,22 @@ async function handler(req, res) {
     const matter = await createMatter(contact.id, validatedData);
     let noteCreated = false;
     try {
-      await createDisputeNote(matter.id, validatedData);
-      noteCreated = true;
+      const noteResult = await createDisputeNote(matter.id, validatedData);
+      noteCreated = !!noteResult;
     } catch (noteErr) {
-      console.warn("[Clio Notes Warning] Note creation warning:", noteErr.message);
+      console.warn("[Clio Notes Warning] Note creation error:", noteErr.message);
+    }
+    try {
+      const summaryText = formatDisputeNoteDetail(validatedData);
+      const summaryFile = {
+        filename: `Dispute_Details_${validatedData.operator.replace(/[^a-zA-Z0-9]/g, "_")}.txt`,
+        mimeType: "text/plain",
+        size: Buffer.byteLength(summaryText, "utf-8"),
+        buffer: Buffer.from(summaryText, "utf-8")
+      };
+      await uploadEvidenceDocument(matter.id, summaryFile);
+    } catch (summaryErr) {
+      console.warn("[Clio Summary Doc Warning]:", summaryErr.message);
     }
     let uploadedCount = 0;
     if (parsed.files && parsed.files.length > 0) {

@@ -52,32 +52,81 @@ CONSENT & CONFIRMATION AUDIT TRAIL:
 
 /**
  * Creates a note on the Clio Matter containing the dispute details and consent confirmations.
- * Follows official Clio v4 polymorphic `regarding` schema:
- * { "data": { "subject": "...", "detail": "...", "date": "...", "regarding": { "id": matterId, "type": "Matter" } } }
+ * Tries both Clio v4 regarding schemas to ensure compatibility across all Clio account configurations.
  */
 export async function createDisputeNote(
   matterId: number,
   data: ValidatedDisputeData
-): Promise<ClioNote> {
-  const endpoint = `/notes.json?fields=id,subject,detail,date,regarding{id,type}`;
+): Promise<ClioNote | null> {
+  const endpoint = `/notes.json?fields=id,subject,detail,date`;
   const todayIsoDate = new Date().toISOString().split('T')[0];
+  const subject = `Dispute Intake Details - ${data.operator} (${data.dateOfIncident})`;
+  const detail = formatDisputeNoteDetail(data);
 
-  const payload = {
-    data: {
-      subject: `Dispute Intake Details - ${data.operator} (${data.dateOfIncident})`,
-      detail: formatDisputeNoteDetail(data),
-      date: todayIsoDate,
-      regarding: {
-        id: matterId,
-        type: 'Matter',
+  // Schema Attempt 1: regarding: { id, type: 'Matter' }
+  try {
+    const payload1 = {
+      data: {
+        subject,
+        detail,
+        date: todayIsoDate,
+        regarding: {
+          id: matterId,
+          type: 'Matter',
+        },
       },
-    },
-  };
+    };
+    const res1 = await clioRequest<ClioSingleNoteResponse>(endpoint, {
+      method: 'POST',
+      body: payload1,
+    });
+    return res1.data;
+  } catch (err1) {
+    console.warn('[Clio Notes] Schema 1 (regarding) error:', (err1 as Error).message);
+  }
 
-  const response = await clioRequest<ClioSingleNoteResponse>(endpoint, {
-    method: 'POST',
-    body: payload,
-  });
+  // Schema Attempt 2: parent: { id, type: 'Matter' }
+  try {
+    const payload2 = {
+      data: {
+        subject,
+        detail,
+        date: todayIsoDate,
+        parent: {
+          id: matterId,
+          type: 'Matter',
+        },
+      },
+    };
+    const res2 = await clioRequest<ClioSingleNoteResponse>(endpoint, {
+      method: 'POST',
+      body: payload2,
+    });
+    return res2.data;
+  } catch (err2) {
+    console.warn('[Clio Notes] Schema 2 (parent) error:', (err2 as Error).message);
+  }
 
-  return response.data;
+  // Schema Attempt 3: matter: { id }
+  try {
+    const payload3 = {
+      data: {
+        subject,
+        detail,
+        date: todayIsoDate,
+        matter: {
+          id: matterId,
+        },
+      },
+    };
+    const res3 = await clioRequest<ClioSingleNoteResponse>(endpoint, {
+      method: 'POST',
+      body: payload3,
+    });
+    return res3.data;
+  } catch (err3) {
+    console.error('[Clio Notes] Schema 3 (matter) error:', (err3 as Error).message);
+  }
+
+  return null;
 }
